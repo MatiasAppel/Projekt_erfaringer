@@ -1,0 +1,205 @@
+---
+title: "2A_metadata_analyse_tanja"
+output: html_notebook
+---
+
+# Setup
+First you must enter the path where data is located.
+```{r data_path}
+metadata_path <- getwd() # edit if the metadata file is in another folder
+```
+
+# Load Packages
+Then we will load the required packages.
+```{r setup}
+library(tidyverse)
+library(lubridate)
+library(urltools)
+```
+
+# Import 2005-2006
+We import the data file
+```{r import_data}
+collection_filename <- "collection_2006_2006_cleaned.rds"
+collection_file <- file.path(metadata_path, collection_filename)
+collection_2005_2006 <- readRDS("/work/bp_udvikling-hjemmesider/Markdown_filer_Tanja/collection_2005_2006.rds") #dette working directory skal ændres til der hvor filen ligger i ens tilfælde
+#df1 <- readRDS(file = collection_2005_2006_file)
+```
+# import af 2010
+Vi importerer løbende de øvrige årstal
+```{r}
+collection_filename <- "collection_2010_cleaned.rds"
+collection_file <- file.path(metadata_path, collection_filename)
+collection_2010 <- readRDS ("/work/bp_udvikling-hjemmesider/Markdown_filer_Tanja/collection_2010.rds") #også ændrer WD så det passer
+```
+# import af 2015
+```{r}
+collection_filename <- "collection_2015_cleaned.rds"
+collection_file <- file.path(metadata_path, collection_filename)
+collection_2015 <- readRDS ("/work/bp_udvikling-hjemmesider/Markdown_filer_Tanja/collection_2015.rds") #ændrer WD 
+```
+
+# import af 2020
+```{r}
+collection_filename <- "collection_2020_cleaned.rds"
+collection_file <- file.path(metadata_path, collection_filename)
+collection_2020 <- readRDS ("/work/bp_udvikling-hjemmesider/Markdown_filer_Tanja/collection_2020.rds") #ændrer WD
+```
+
+
+# Create variables 'year', 'month' and 'day'. Behøves ikke i denne situation, da det er lavet i script 1 som data der skal bruges her, er lavet ud fra
+```{r year_month}
+df1 <- df1 %>% 
+  mutate(dt = ymd_hms(wayback_date),
+         year = year(dt),
+         month = month(dt), 
+         day = day(dt))
+```
+
+
+# Factorer  for 2005-2006
+Change some variables into factors which is the way to handle categorical variables such as `content_type_norm`.
+Disse steps gøres for alle årene
+```{r factors}
+collection_2005_2006 <- collection_2005_2006 %>%
+  mutate(year = fct_infreq(as_factor(year)),
+         month = fct_infreq(as_factor(month)),
+         content_type_norm = fct_infreq(content_type_norm)
+         )
+```
+
+# Factorer for 2010
+Change some variables into factors which is the way to handle categorical variables such as `content_type_norm`.
+```{r factors}
+collection_2010 <- collection_2010 %>%
+  mutate(year = fct_infreq(as_factor(year)),
+         month = fct_infreq(as_factor(month)),
+         content_type_norm = fct_infreq(content_type_norm)
+         )
+```
+
+
+# factorer for 2015
+```{r}
+collection_2015 <- collection_2015 %>%
+  mutate(year = fct_infreq(as_factor(year)),
+         month = fct_infreq(as_factor(month)),
+         content_type_norm = fct_infreq(content_type_norm)
+         )
+```
+
+# factorer for 2020
+```{r}
+collection_2020 <- collection_2020 %>%
+  mutate(year = fct_infreq(as_factor(year)),
+         month = fct_infreq(as_factor(month)),
+         content_type_norm = fct_infreq(content_type_norm)
+         )
+```
+
+
+# Add Categories
+We import a file "kategorier.csv" and join it on the collection data frame to add categories on domains (websites).
+En fil som ikke er blevet udleveret i vores tilfælde og denne chunk er derfor ikke brugt i det resterende arbejde
+```{r add_categories}
+#library(readr)
+# the category file should be placed in the same folder as the metadata file
+category_file <- file.path(metadata_path, "kategorier.csv")
+kategorier <- read_delim(category_file,
+                         delim = ";", 
+                         escape_double = FALSE, 
+                         trim_ws = TRUE,
+                         show_col_types = FALSE)
+
+df1 <- df1 %>% 
+  left_join(kategorier, by = "domain")
+```
+
+# Handle versions for 2005-2006
+# Her sorteres der for årenes største version - de er også opdelt således man kan køre dem hver for sig 
+If there are more versions (of a web page or any other file on that url) we select the largest one.
+```{r pick_largest_version}
+collection_2000_largestversion <- collection_2005_2006 %>%
+  group_by(url) %>%
+  filter(content_length == max(content_length, na.rm = TRUE)) %>% # pick the largest (in bytes)
+  # Very important to apply ungroup()
+  ungroup() %>% arrange(arc_job)
+```
+
+# Handle versions for 2010
+If there are more versions (of a web page or any other file on that url) we select the largest one.
+```{r pick_largest_version}
+collection_2010_largestversion <- collection_2010 %>%
+  group_by(url) %>%
+  filter(content_length == max(content_length, na.rm = TRUE)) %>% # pick the largest (in bytes)
+  # Very important to apply ungroup()
+  ungroup() %>% arrange(arc_job)
+```
+
+# Handle versions for 2015
+If there are more versions (of a web page or any other file on that url) we select the largest one.
+```{r pick_largest_version}
+collection_2015_largestversion <- collection_2015 %>%
+  group_by(url) %>%
+  filter(content_length == max(content_length, na.rm = TRUE)) %>% # pick the largest (in bytes)
+  # Very important to apply ungroup()
+  ungroup() %>% arrange(arc_job)
+```
+#Handle versions for 2020
+```{r}
+collection_2020_largestversion <- collection_2020 %>%
+  group_by(url) %>%
+  filter(content_length == max(content_length, na.rm = TRUE)) %>% # pick the largest (in bytes)
+  # Very important to apply ungroup()
+  ungroup() %>% arrange(arc_job)
+```
+
+
+
+# Analyse for 2005-2006
+Now we can begin analysing the data.
+
+Her foretages der forskellige count analyser på indholdet for årene. Der er valgt nogle forskellige variabler for at give et så bredt et billede som muligt
+Ønsker man deskriptiv analyse på andre variabler kan man således bytte den ud i med en anden i parentesen.
+
+First we can show the distribution of files per category.
+```{r distribution_categories}
+# the distribution of objects per category
+collection_2000_largestversion %>% count(host) # consider using host if available
+```
+
+```{r}
+collection_2000_largestversion %>% count(domain) 
+```
+
+```{r}
+collection_2000_kategoriseret %>% count(Museumstype)
+```
+
+
+
+
+Or by file type.
+```{r distribution_content_type}
+# the distribution of objects per content_type
+collection_2000_largestversion %>% count(content_type_norm) # consider using host if available
+```
+# foreløbig analyse af 2010
+```{r}
+collection_2010_largestversion %>% count(host)
+collection_2010_largestversion %>% count(domain)
+collection_2010_largestversion %>% count(content_type_norm) 
+```
+# analyse af 2015 data
+```{r}
+collection_2015_largestversion %>% count(domain)
+collection_2015_largestversion %>% count(host)
+collection_2015_largestversion %>% count(content_type_norm)
+```
+# analyse af 2020 data
+```{r}
+collection_2020_largestversion %>% count(domain)
+collection_2020_largestversion %>% count(host)
+collection_2020_largestversion %>% count(content_type_norm)
+```
+
